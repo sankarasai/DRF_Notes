@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Django REST Framework Explained</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    background: #f7f9fc;
+    margin: 0;
+    padding: 0;
+    color: #333;
+  }
+  header {
+    background-color: #007acc;
+    color: white;
+    padding: 1rem 2rem;
+    text-align: center;
+  }
+  h1 {
+    margin: 0;
+    font-weight: 700;
+  }
+  .container {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  .card {
+    display: none;
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgb(0 0 0 / 0.1);
+    margin: 2rem;
+  }
+  .card.active {
+    display: block;
+  }
+  h2 {
+    color: #007acc;
+    margin-top: 0;
+  }
+  pre {
+    background: #272822;
+    color: #f8f8f2;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+      monospace;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+  }
+  th {
+    background: #007acc;
+    color: white;
+  }
+  ul {
+    padding-left: 1.5rem;
+  }
+  .routing {
+    background: #e6f0ff;
+    border-left: 4px solid #007acc;
+    padding: 1rem;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+  }
+  .nav-buttons {
+    display: flex;
+    justify-content: center;
+    margin: 2rem 0;
+    gap: 1rem;
+  }
+  button {
+    background-color: #007acc;
+    border: none;
+    color: white;
+    font-size: 1rem;
+    padding: 0.6rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.25s ease;
+  }
+  button:disabled {
+    background-color: #a3c1f7;
+    cursor: not-allowed;
+  }
+  button:hover:not(:disabled) {
+    background-color: #005f99;
+  }
+</style>
+</head>
+<body>
+<div class="header-top">
+    <header>
+  <h1>Django REST Framework Concepts</h1>
+  <!-- <p>One topic per card — navigate with Previous/Next buttons</p> -->
+</header>
+
+<div class="container">
+  <div class="nav-buttons">
+    <button id="prevBtn" disabled>Previous</button>
+    <button id="nextBtn">Next</button>
+  </div>
+</div>
+
+<!-- JWT Authentication -->
+<section class="card" id="card-jwt-authentication">
+  <h2>JWT Authentication</h2>
+  <p><strong>What?</strong> JSON Web Token (JWT) provides stateless, token-based authentication for APIs.</p>
+
+  <h3>Setup (using <code>djangorestframework-simplejwt</code>):</h3>
+  <ol>
+    <li>Install the package:
+      <pre><code>pip install djangorestframework-simplejwt</code></pre>
+    </li>
+    <li>Add to <code>REST_FRAMEWORK</code> settings in <code>settings.py</code>:
+      <pre><code>REST_FRAMEWORK = {
+  'DEFAULT_AUTHENTICATION_CLASSES': (
+    'rest_framework_simplejwt.authentication.JWTAuthentication',
+  ),
+}</code></pre>
+    </li>
+  </ol>
+
+  <h3>Configure Token Expiry (optional):</h3>
+  <p>In your <code>settings.py</code>, you can set token lifetimes like so:</p>
+  <pre><code>from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),   # Access token valid for 1 hour
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Refresh token valid for 24 hours
+}</code></pre>
+
+  <h3>Token Endpoints:</h3>
+  <pre><code>from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.urls import path
+
+urlpatterns = [
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+]</code></pre>
+
+  <h3>Protecting a View:</h3>
+  <pre><code>from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+class HelloView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({'message': f'Hello, {request.user.username}!'})</code></pre>
+
+  <h3>How to Use JWT Tokens in Practice:</h3>
+  <ol>
+    <li>
+      <strong>Login (only once):</strong> Send username and password to <code>/api/token/</code> to get tokens:<br>
+      <pre><code>POST /api/token/
+{
+  "username": "user1",
+  "password": "pass123"
+}</code></pre>
+      <p><em>This request is made only once to obtain tokens after successful login.</em></p>
+    </li>
+
+    <li>
+      <strong>Receive tokens:</strong> Server responds with access and refresh tokens:<br>
+      <pre><code>{
+  "access": "&lt;access_token&gt;",   <!-- Valid for 1 hour -->
+  "refresh": "&lt;refresh_token&gt;" <!-- Valid for 24 hours -->
+}</code></pre>
+    </li>
+
+    <li>
+      <strong>Use access token for protected API calls:</strong> Include the access token in the <code>Authorization</code> header:<br>
+      <pre><code>Authorization: Bearer &lt;access_token&gt;</code></pre>
+      Example curl request:
+      <pre><code>curl -H "Authorization: Bearer &lt;access_token&gt;" http://localhost:8000/hello/</code></pre>
+      <p><em>No need to send username/password with every request.</em></p>
+    </li>
+
+    <li>
+      <strong>When access token expires (after 1 hour):</strong> You will get a <code>401 Unauthorized</code> response from protected endpoints.<br>
+      Use the refresh token (valid for 24 hours) to get a new access token by POSTing to <code>/api/token/refresh/</code>:
+      <pre><code>POST /api/token/refresh/
+{
+  "refresh": "&lt;refresh_token&gt;"
+}</code></pre>
+      Server responds with a new access token valid for another hour:
+      <pre><code>{
+  "access": "&lt;new_access_token&gt;"
+}</code></pre>
+    </li>
+
+    <li>
+      <strong>Continue API calls:</strong> Use the new access token in <code>Authorization</code> header for further requests.
+    </li>
+
+    <li>
+      <strong>When refresh token expires (after 24 hours):</strong> The user must log in again (send username and password) to get new tokens.
+    </li>
+  </ol>
+
+  <h3>Summary:</h3>
+  <ul>
+    <li>Username and password are sent <strong>only once at login</strong> to obtain tokens.</li>
+    <li>Access token is valid for 1 hour — used for authenticating API requests.</li>
+    <li>Refresh token is valid for 24 hours — used to get new access tokens without logging in again.</li>
+    <li>After refresh token expiry, user must log in again.</li>
+    <li>This approach avoids sending sensitive credentials repeatedly and supports stateless authentication.</li>
+  </ul>
+
+  <h3>Benefits of JWT:</h3>
+  <ul>
+    <li>Stateless, no server-side session required.</li>
+    <li>Tokens can carry custom user claims.</li>
+    <li>Works well with Single Page Applications (SPA), mobile apps, and decoupled frontends.</li>
+  </ul>
+</section>
+
+
+  <!-- 1. Function-Based Views -->
+  <section class="card active" id="card-fbv">
+    <h2>Function-Based Views (FBV) — Simple and explicit</h2>
+    <p><strong>What?</strong> Use Python functions decorated with <code>@api_view</code> to handle HTTP methods. Great for simple or one-off APIs.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>HTTP Method</th>
+          <th>Function Handling</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>GET</td><td>def function(request): if request.method == 'GET'</td><td>Retrieve data</td></tr>
+        <tr><td>POST</td><td>def function(request): if request.method == 'POST'</td><td>Create resource</td></tr>
+        <tr><td>PUT</td><td>def function(request): if request.method == 'PUT'</td><td>Update resource</td></tr>
+        <tr><td>DELETE</td><td>def function(request): if request.method == 'DELETE'</td><td>Delete resource</td></tr>
+      </tbody>
+    </table>
+    <pre><code>from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+@api_view(['GET', 'POST'])
+def book_list(request):
+    if request.method == 'GET':
+        # Return list of books
+        pass
+    elif request.method == 'POST':
+        # Create new book
+        pass
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def book_detail(request, pk):
+    if request.method == 'GET':
+        # Return single book
+        pass
+    elif request.method == 'PUT':
+        # Update book
+        pass
+    elif request.method == 'DELETE':
+        # Delete book
+        pass
+</code></pre>
+    <div class="routing">
+<strong>URL routing (urls.py):</strong><br>
+<code>from django.urls import path
+from .views import book_list, book_detail
+
+urlpatterns = [
+    path('books/', book_list),
+    path('books/&lt;int:pk&gt;/', book_detail),
+]
+</code>
+    </div>
+    <ul>
+      <li>Simple and explicit control over HTTP methods</li>
+      <li>Less abstraction, great for small APIs or quick tests</li>
+      <li>Not recommended for complex APIs with lots of reuse</li>
+    </ul>
+  </section>
+
+  <!-- 2. CBV (APIView) -->
+  <section class="card" id="card-apiview">
+    <h2>Class-Based Views (APIView) — Full control</h2>
+    <p><strong>What?</strong> Use classes inheriting from <code>APIView</code> to manually handle HTTP methods (<code>get()</code>, <code>post()</code>, etc.) for maximum flexibility.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>HTTP Method</th>
+          <th>Handler Method</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>GET</td><td>def get(self, request, ...)</td><td>Retrieve resources</td></tr>
+        <tr><td>POST</td><td>def post(self, request, ...)</td><td>Create resource</td></tr>
+        <tr><td>PUT</td><td>def put(self, request, ...)</td><td>Update resource</td></tr>
+        <tr><td>DELETE</td><td>def delete(self, request, ...)</td><td>Delete resource</td></tr>
+      </tbody>
+    </table>
+    <pre><code>from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Book
+from .serializers import BookSerializer
+
+class BookAPIView(APIView):
+    def get(self, request):
+        books = Book.objects.all()
+        serializer = BookSerializer(books, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = BookSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+</code></pre>
+    <div class="routing">
+<strong>URL routing (urls.py):</strong><br>
+<code>from django.urls import path
+from .views import BookAPIView
+
+urlpatterns = [
+    path('books/', BookAPIView.as_view()),
+]
+</code>
+    </div>
+    <ul>
+      <li>Maximum control over request handling</li>
+      <li>Manual HTTP method implementations</li>
+      <li>Best for complex or custom behaviors</li>
+    </ul>
+  </section>
+
+  <!-- 3. Generic Views -->
+  <section class="card" id="card-generic">
+    <h2>Generic Views — Mixins for CRUD</h2>
+    <p><strong>What?</strong> Combine mixins like <code>ListModelMixin</code> and <code>CreateModelMixin</code> with <code>GenericAPIView</code> to reduce boilerplate for common CRUD operations.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>HTTP Method</th>
+          <th>Common Generic View</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>GET</td><td>ListAPIView, RetrieveAPIView</td><td>Retrieve lists or single resources</td></tr>
+        <tr><td>POST</td><td>CreateAPIView</td><td>Create resource</td></tr>
+        <tr><td>PUT/PATCH</td><td>UpdateAPIView</td><td>Update resource</td></tr>
+        <tr><td>DELETE</td><td>DestroyAPIView</td><td>Delete resource</td></tr>
+      </tbody>
+    </table>
+    <pre><code>from rest_framework import generics
+from .models import Book
+from .serializers import BookSerializer
+
+class BookListCreateView(generics.ListCreateAPIView):
+    queryset = Book.objects.all()
+    serializer_class = BookSerializer
+</code></pre>
+    <div class="routing">
+<strong>URL routing (urls.py):</strong><br>
+<code>from django.urls import path
+from .views import BookListCreateView
+
+urlpatterns = [
+    path('books/', BookListCreateView.as_view()),
+]
+</code>
+    </div>
+    <ul>
+      <li>Less code via reusable mixins</li>
+      <li>Balanced flexibility and simplicity</li>
+      <li>Ideal for standard CRUD endpoints</li>
+    </ul>
+  </section>
+
+  <!-- 4. ViewSets -->
+  <section class="card" id="card-viewset">
+    <h2>ViewSets — All actions in one</h2>
+    <p><strong>What?</strong> Group all logic (list, create, retrieve, update, destroy) into one class. Used with routers for automatic URL routing.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th>Method</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>list</td><td>GET /books/</td><td>List all resources</td></tr>
+        <tr><td>retrieve</td><td>GET /books/&lt;id&gt;/</td><td>Get single resource</td></tr>
+        <tr><td>create</td><td>POST /books/</td><td>Create resource</td></tr>
+        <tr><td>update</td><td>PUT /books/&lt;id&gt;/</td><td>Update resource</td></tr>
+        <tr><td>destroy</td><td>DELETE /books/&lt;id&gt;/</td><td>Delete resource</td></tr>
+      </tbody>
+    </table>
+    <pre><code>from rest_framework import viewsets
+from .models import Book
+from .serializers import BookSerializer
+
+class BookViewSet(viewsets.ModelViewSet):
+    queryset = Book.objects.all()
+    serializer_class = BookSerializer
+</code></pre>
+    <div class="routing">
+<strong>URL routing with router (urls.py):</strong><br>
+<code>from rest_framework.routers import DefaultRouter
+from .views import BookViewSet
+
+router = DefaultRouter()
+router.register(r'books', BookViewSet)
+
+urlpatterns = router.urls
+</code>
+    </div>
+    <ul>
+      <li>Minimal code for full CRUD</li>
+      <li>Automatic URL routing with routers</li>
+      <li>Best for quick RESTful APIs</li>
+    </ul>
+  </section>
+
+  <!-- Router Types in DRF -->
+<section class="card" id="card-router-types">
+  <h2>Router Types in Django REST Framework</h2>
+  <p><strong>What?</strong> Routers handle URL routing for ViewSets by automatically generating RESTful routes. DRF includes several types for different use cases.</p>
+
+  <h3>1. DefaultRouter</h3>
+  <ul>
+    <li>Most commonly used router.</li>
+    <li>Includes an <strong>API root view</strong> at <code>/</code> that lists all registered endpoints.</li>
+    <li>Useful for development and APIs with a browsable UI.</li>
+  </ul>
+  <pre><code>from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'books', BookViewSet)
+urlpatterns = router.urls
+</code></pre>
+
+  <h3>2. SimpleRouter</h3>
+  <ul>
+    <li>Same as <code>DefaultRouter</code> but <strong>without the API root view</strong>.</li>
+    <li>Good for production APIs where the root listing isn't needed.</li>
+  </ul>
+  <pre><code>from rest_framework.routers import SimpleRouter
+
+router = SimpleRouter()
+router.register(r'books', BookViewSet)
+urlpatterns = router.urls
+</code></pre>
+
+  <h3>3. Custom Routers</h3>
+  <ul>
+    <li>You can subclass <code>BaseRouter</code> to define your own URL generation logic.</li>
+    <li>Useful for advanced use cases (e.g., versioned APIs, nested routes).</li>
+  </ul>
+  <pre><code>from rest_framework.routers import BaseRouter
+
+class MyCustomRouter(BaseRouter):
+    routes = [
+        # custom route definitions here
+    ]
+    def get_urls(self):
+        return []  # return custom URL patterns
+</code></pre>
+
+  <h3>Comparison Table:</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Router Type</th>
+        <th>API Root</th>
+        <th>Auto URL Generation</th>
+        <th>Use Case</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>DefaultRouter</strong></td>
+        <td>✅ Yes</td>
+        <td>✅ Yes</td>
+        <td>General use, development, browsable API</td>
+      </tr>
+      <tr>
+        <td><strong>SimpleRouter</strong></td>
+        <td>❌ No</td>
+        <td>✅ Yes</td>
+        <td>Production, no root endpoint needed</td>
+      </tr>
+      <tr>
+        <td><strong>CustomRouter</strong></td>
+        <td>Optional</td>
+        <td>Custom Logic</td>
+        <td>Advanced patterns, versioning, nested routing</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Summary:</h3>
+  <ul>
+    <li><strong>DefaultRouter</strong>: Easiest for quick development and testing.</li>
+    <li><strong>SimpleRouter</strong>: Cleaner option for production APIs.</li>
+    <li><strong>Custom Routers</strong>: Power and flexibility for advanced cases.</li>
+  </ul>
+</section>
+
+  <!-- 5. JWT Authentication -->
+  <section class="card" id="card-jwt">
+    <h2>JWT Authentication — JSON Web Token</h2>
+    <p><strong>What?</strong> Stateless token-based authentication providing access & refresh tokens.</p>
+    <h3>How it works (HTTP methods):</h3>
+    <ul>
+      <li><code>POST /api/token/</code> — Obtain token by sending username & password</li>
+      <li><code>POST /api/token/refresh/</code> — Refresh access token using refresh token</li>
+      <li>Use <code>Authorization: Bearer &lt;token&gt;</code> header for authenticated API calls</li>
+    </ul>
+>
+    <pre><code># settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
+# urls.py
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+urlpatterns = [
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+]
+</code></pre>
+    <p><strong>Example curl:</strong></p>
+    <pre><code>curl -X POST -d "username=user&password=pass" http://localhost:8000/api/token/
+curl -H "Authorization: Bearer &lt;access_token&gt;" http://localhost:8000/protected-resource/
+</code></pre>
+    <ul>
+      <li>Stateless, scalable token-based auth</li>
+      <li>Requires <code>djangorestframework-simplejwt</code> package</li>
+      <li>Refresh tokens allow long-lived sessions</li>
+    </ul>
+  </section>
+
+  <!-- 6. Throttling & Rate Limiting -->
+  <section class="card" id="card-throttling">
+    <h2>Throttling & Rate Limiting</h2>
+    <p><strong>What?</strong> Controls request rates per user or IP to protect APIs from abuse or overload.</p>
+    <h3>How it works:</h3>
+    <ul>
+      <li>Throttle classes limit requests (e.g., <code>UserRateThrottle</code>, <code>AnonRateThrottle</code>)</li>
+      <li>Configure rates like <code>'5/minute'</code> in <code>settings.py</code></li>
+      <li>Throttling applies per user or IP based on class</li>
+    </ul>
+    <pre><code># settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '10/minute',
+        'anon': '5/minute',
+    }
+}
+</code></pre>
+    <p><strong>Example curl showing throttling:</strong></p>
+    <pre><code>curl http://localhost:8000/api/resource/
+# Repeat >10 times within a minute, then get HTTP 429 Too Many Requests
+</code></pre>
+    <ul>
+      <li>Protects your API from excessive use</li>
+      <li>Custom throttle classes possible</li>
+      <li>Throttle status code: 429 Too Many Requests</li>
+    </ul>
+  </section>
+
+  <!-- 7. Permissions & Authentication Classes -->
+  <section class="card" id="card-permissions">
+    <h2>Permissions & Authentication Classes</h2>
+    <p><strong>What?</strong> Control who can access your API endpoints.</p>
+    <h3>Common Permission Classes:</h3>
+    <ul>
+      <li><code>AllowAny</code> — Open access</li>
+      <li><code>IsAuthenticated</code> — Authenticated users only</li>
+      <li><code>IsAdminUser</code> — Admin users only</li>
+    </ul>
+    <h3>How to apply:</h3>
+    <pre><code># settings.py (global)
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+# or per view
+from rest_framework.permissions import IsAdminUser
+
+class AdminOnlyView(APIView):
+    permission_classes = [IsAdminUser]
+    ...
+</code></pre>
+    <h3>Custom Permission Example:</h3>
+    <pre><code>from rest_framework.permissions import BasePermission
+
+class IsOwner(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.owner == request.user
+</code></pre>
+    <ul>
+      <li>Fine-grained access control</li>
+      <li>Supports object-level permissions</li>
+      <li>Custom permissions easy to implement</li>
+    </ul>
+  </section>
+
+  <!-- 8. Pagination -->
+  <section class="card" id="card-pagination">
+    <h2>Pagination</h2>
+    <p><strong>What?</strong> Split large querysets into pages to avoid sending too much data at once.</p>
+    <h3>Common pagination classes:</h3>
+    <ul>
+      <li><code>PageNumberPagination</code> — classic ?page=2</li>
+      <li><code>LimitOffsetPagination</code> — control limit & offset</li>
+      <li><code>CursorPagination</code> — performant cursor-based</li>
+    </ul>
+    <pre><code># settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+}
+</code></pre>
+    <h3>Example response with PageNumberPagination:</h3>
+    <pre><code>{
+  "count": 102,
+  "next": "http://api.example.com/books/?page=3",
+  "previous": "http://api.example.com/books/?page=1",
+  "results": [
+    {...}, {...}
+  ]
+}
+</code></pre>
+    <ul>
+      <li>Avoid overload on client & server</li>
+      <li>Configurable page size</li>
+      <li>Support for multiple pagination styles</li>
+    </ul>
+  </section>
+
+  <!-- 9. Filtering -->
+  <section class="card" id="card-filtering">
+    <h2>Filtering</h2>
+    <p><strong>What?</strong> Enable clients to filter API results by fields, search terms, or ordering.</p>
+    <h3>Common filtering tools:</h3>
+    <ul>
+      <li><code>DjangoFilterBackend</code> for field filters</li>
+      <li><code>SearchFilter</code> for keyword searches</li>
+      <li><code>OrderingFilter</code> to order results</li>
+    </ul>
+    <pre><code># settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+}
+
+# views.py
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import generics
+
+class BookList(generics.ListAPIView):
+    queryset = Book.objects.all()
+    serializer_class = BookSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['author', 'category']
+    search_fields = ['title', 'description']
+    ordering_fields = ['published_date']
+</code></pre>
+    <ul>
+      <li>Flexible, powerful query filtering</li>
+      <li>Supports exact, range, and custom filters</li>
+      <li>Simple integration with DRF generics</li>
+    </ul>
+  </section>
+
+  <!-- 10. Serialization -->
+  <section class="card" id="card-serialization">
+    <h2>Serialization</h2>
+    <p><strong>What?</strong> Convert complex data (querysets, models) to JSON and back.</p>
+    <h3>Basic Serializer Example:</h3>
+    <pre><code>from rest_framework import serializers
+from .models import Book
+
+class BookSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Book
+        fields = ['id', 'title', 'author', 'published_date']
+</code></pre>
+    <h3>Serializer usage in views:</h3>
+    <pre><code>serializer = BookSerializer(book_instance)
+json_data = serializer.data
+
+serializer = BookSerializer(data=request.data)
+if serializer.is_valid():
+    serializer.save()
+</code></pre>
+    <ul>
+      <li>Maps Django models to JSON format</li>
+      <li>Handles validation, nested serialization</li>
+      <li>Customizable fields & methods</li>
+    </ul>
+  </section>
+
+  <!-- 11. Parsers & Renderers -->
+  <section class="card" id="card-parsers-renderers">
+    <h2>Parsers & Renderers</h2>
+    <p><strong>What?</strong> Parsers handle incoming data formats; renderers output responses in desired formats (JSON, XML, browsable API).</p>
+    <h3>Example:</h3>
+    <pre><code>from rest_framework.parsers import JSONParser, FormParser
+from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
+
+class MyAPIView(APIView):
+    parser_classes = [JSONParser, FormParser]
+    renderer_classes = [JSONRenderer, BrowsableAPIRenderer]
+</code></pre>
+    <ul>
+      <li>Supports multiple request/response formats</li>
+      <li>Extendable for custom formats</li>
+      <li>Browsable API uses HTML renderer</li>
+    </ul>
+  </section>
+
+  <!-- 12. Exception Handling -->
+  <section class="card" id="card-exceptions">
+    <h2>Exception Handling</h2>
+    <p><strong>What?</strong> DRF provides ways to handle errors gracefully and return proper HTTP responses.</p>
+    <h3>Custom exception handler example:</h3>
+    <pre><code>from rest_framework.views import exception_handler
+
+def custom_exception_handler(exc, context):
+    response = exception_handler(exc, context)
+
+    if response is not None:
+        response.data['status_code'] = response.status_code
+
+    return response
+
+# settings.py
+REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'my_project.my_app.utils.custom_exception_handler'
+}
+</code></pre>
+    <ul>
+      <li>Customize error responses</li>
+      <li>Use built-in or custom exceptions</li>
+      <li>Return meaningful HTTP status codes</li>
+    </ul>
+  </section>
+
+  <!-- 13. Versioning -->
+  <section class="card" id="card-versioning">
+    <h2>Versioning</h2>
+    <p><strong>What?</strong> Support multiple API versions simultaneously.</p>
+    <h3>Versioning schemes:</h3>
+    <ul>
+      <li>URL Path versioning: <code>/v1/resource/</code></li>
+      <li>Query Parameter versioning: <code>?version=1.0</code></li>
+      <li>Header versioning: via custom headers</li>
+    </ul>
+    <pre><code># settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
+    'DEFAULT_VERSION': '1.0',
+    'ALLOWED_VERSIONS': ['1.0', '2.0'],
+}
+
+# urls.py
+urlpatterns = [
+    path('api/<version>/books/', BookList.as_view()),
+]
+</code></pre>
+    <ul>
+      <li>Allows backward compatibility</li>
+      <li>Clients can select API version</li>
+      <li>Helps gradual feature rollout</li>
+    </ul>
+  </section>
+<!-- Throttle Classes -->
+<section class="card" id="card-throttle-classes">
+  <h2>Throttle Classes</h2>
+  <p><strong>What?</strong> Control the rate of API requests to prevent abuse or overload.</p>
+  <h3>Common throttle classes:</h3>
+  <ul>
+    <li><code>AnonRateThrottle</code> — limits anonymous users</li>
+    <li><code>UserRateThrottle</code> — limits authenticated users</li>
+    <li><code>ScopedRateThrottle</code> — apply different rates per scope</li>
+  </ul>
+  <p><strong>Example usage in settings:</strong></p>
+  <pre><code>REST_FRAMEWORK = {
+  'DEFAULT_THROTTLE_CLASSES': [
+    'rest_framework.throttling.AnonRateThrottle',
+    'rest_framework.throttling.UserRateThrottle',
+  ],
+  'DEFAULT_THROTTLE_RATES': {
+    'anon': '100/day',
+    'user': '1000/day'
+  }
+}</code></pre>
+  <ul>
+    <li>Helps protect APIs from DoS attacks</li>
+    <li>Supports custom throttle classes</li>
+  </ul>
+</section>
+
+<!-- Signals in DRF -->
+<section class="card" id="card-signals">
+  <h2>Signals in DRF</h2>
+  <p><strong>What?</strong> Hook into lifecycle events of requests or models.</p>
+  <ul>
+    <li>Use Django signals like <code>pre_save</code>, <code>post_save</code></li>
+    <li>DRF-specific hooks during request/response processing</li>
+  </ul>
+  <p><strong>Example:</strong> <code>request_started</code> and <code>request_finished</code> signals</p>
+  <pre><code>from django.core.signals import request_started, request_finished
+from django.dispatch import receiver
+
+@receiver(request_started)
+def on_request_started(sender, **kwargs):
+    print("Request started!")</code></pre>
+  <ul>
+    <li>Useful for logging, auditing, or custom processing</li>
+  </ul>
+</section>
+
+<!-- Testing DRF APIs -->
+<section class="card" id="card-testing">
+  <h2>Testing DRF APIs</h2>
+  <p><strong>What?</strong> Write automated tests for views, serializers, and endpoints.</p>
+  <h3>Tools:</h3>
+  <ul>
+    <li><code>APIClient</code> for simulating requests</li>
+    <li>Use Django's <code>TestCase</code> and <code>unittest</code></li>
+  </ul>
+  <pre><code>from rest_framework.test import APIClient, APITestCase
+
+class BookTests(APITestCase):
+    def test_get_books(self):
+        client = APIClient()
+        response = client.get('/api/books/')
+        self.assertEqual(response.status_code, 200)</code></pre>
+  <ul>
+    <li>Helps ensure API reliability</li>
+  </ul>
+</section>
+
+<!-- Browsable API -->
+<section class="card" id="card-browsable-api">
+  <h2>Browsable API</h2>
+  <p><strong>What?</strong> DRF's built-in web interface for interacting with APIs in the browser.</p>
+  <ul>
+    <li>Automatically generated UI with forms and documentation</li>
+    <li>Customize via <code>renderer_classes</code> or override templates</li>
+  </ul>
+  <p><strong>Enabling in settings:</strong></p>
+  <pre><code>REST_FRAMEWORK = {
+  'DEFAULT_RENDERER_CLASSES': (
+    'rest_framework.renderers.JSONRenderer',
+    'rest_framework.renderers.BrowsableAPIRenderer',
+  ),
+}</code></pre>
+</section>
+
+<!-- Content Negotiation -->
+<section class="card" id="card-content-negotiation">
+  <h2>Content Negotiation</h2>
+  <p><strong>What?</strong> Determines which parser and renderer to use based on client request headers or URL format suffix.</p>
+  <ul>
+    <li>Supports multiple content types like JSON, XML, HTML</li>
+    <li>Customize negotiation via <code>DEFAULT_CONTENT_NEGOTIATION_CLASS</code></li>
+  </ul>
+  <p><strong>Example:</strong></p>
+  <pre><code>class CustomContentNegotiation(DefaultContentNegotiation):
+    def select_renderer(self, request, renderers, format_suffix):
+        # Custom logic here
+        return super().select_renderer(request, renderers, format_suffix)</code></pre>
+</section>
+
+<!-- Hyperlinked APIs -->
+<section class="card" id="card-hyperlinked-apis">
+  <h2>Hyperlinked APIs</h2>
+  <p><strong>What?</strong> Use <code>HyperlinkedModelSerializer</code> to represent relationships as hyperlinks instead of primary keys.</p>
+  <pre><code>from rest_framework import serializers
+
+class BookSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Book
+        fields = ['url', 'title', 'author']</code></pre>
+  <ul>
+    <li>Improves API discoverability</li>
+    <li>Standardizes URL structure</li>
+  </ul>
+</section>
+
+<!-- Scoped Throttling -->
+<section class="card" id="card-scoped-throttling">
+  <h2>Scoped Throttling</h2>
+  <p><strong>What?</strong> Apply different throttling rates to different API endpoints or scopes.</p>
+  <pre><code>class BookViewSet(viewsets.ModelViewSet):
+    throttle_scope = 'books'
+    throttle_classes = [ScopedRateThrottle]
+
+# settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_RATES': {
+        'books': '10/minute',
+    }
+}</code></pre>
+  <ul>
+    <li>Fine-grained control over API rate limiting</li>
+  </ul>
+</section>
+
+<!-- Signals & Hooks -->
+<section class="card" id="card-signals-hooks">
+  <h2>Signals & Hooks</h2>
+  <p><strong>What?</strong> Additional ways to hook into DRF or Django lifecycle events.</p>
+  <ul>
+    <li>Override serializer <code>validate()</code> or <code>create()</code> methods</li>
+    <li>Use view hooks like <code>perform_create()</code>, <code>perform_update()</code></li>
+    <li>Connect Django signals (e.g., <code>post_save</code>)</li>
+  </ul>
+</section>
+
+<!-- Custom Serializers and Fields -->
+<section class="card" id="card-custom-serializers-fields">
+  <h2>Custom Serializers and Fields</h2>
+  <p><strong>What?</strong> Create custom serializer fields or methods to handle complex data structures.</p>
+  <pre><code>from rest_framework import serializers
+
+class CommaSeparatedIntegerField(serializers.Field):
+    def to_representation(self, value):
+        return ",".join(str(i) for i in value)
+
+    def to_internal_value(self, data):
+        return [int(i) for i in data.split(",")]</code></pre>
+  <ul>
+    <li>Useful for custom validation and transformation</li>
+  </ul>
+</section>
+
+<!-- View Decorators and Mixins -->
+<section class="card" id="card-view-decorators-mixins">
+  <h2>View Decorators and Mixins</h2>
+  <p><strong>What?</strong> Decorate function-based views or extend class-based views.</p>
+  <ul>
+    <li><code>@api_view(['GET', 'POST'])</code> for function views</li>
+    <li>Mixins like <code>CreateModelMixin</code>, <code>ListModelMixin</code> for reusable actions</li>
+  </ul>
+  <pre><code>from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+@api_view(['GET'])
+def hello(request):
+    return Response({'message': 'Hello, world!'})</code></pre>
+</section>
+
+<!-- Content Types & Format Suffixes -->
+<section class="card" id="card-content-types-format-suffixes">
+  <h2>Content Types & Format Suffixes</h2>
+  <p><strong>What?</strong> Handle URLs like <code>/api/books.json</code> or <code>/api/books.api</code> for response format negotiation.</p>
+  <p>Enable by adding format suffix patterns in urls.py:</p>
+  <pre><code>from rest_framework.urlpatterns import format_suffix_patterns
+
+urlpatterns = format_suffix_patterns([
+    path('books/', BookList.as_view()),
+])</code></pre>
+</section>
+
+<!-- Schema Generation & API Documentation -->
+<section class="card" id="card-schema-documentation">
+  <h2>Schema Generation & API Documentation</h2>
+  <p><strong>What?</strong> Generate OpenAPI/Swagger or CoreAPI docs automatically from your DRF views.</p>
+  <ul>
+    <li>Use <code>SchemaGenerator</code> or third-party packages like <code>drf-yasg</code>, <code>drf-spectacular</code></li>
+    <li>Expose interactive API docs</li>
+  </ul>
+  <pre><code>from rest_framework.schemas import get_schema_view
+
+schema_view = get_schema_view(title="My API")
+
+urlpatterns = [
+    path('schema/', schema_view),
+]</code></pre>
+</section>
+
+<!-- WebSockets and DRF -->
+<section class="card" id="card-websockets-drf">
+  <h2>WebSockets and DRF</h2>
+  <p><strong>What?</strong> DRF is primarily for HTTP APIs but can be integrated with channels for WebSocket support.</p>
+  <ul>
+    <li>Use Django Channels for async communication</li>
+    <li>Combine with DRF serializers for data formatting</li>
+  </ul>
+  <p>Example project setup involves separate routing for WebSockets.</p>
+</section>
+
+
+</div>
+
+<script>
+  const cards = document.querySelectorAll('.card');
+  let current = 0;
+
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  function showCard(index) {
+    cards.forEach((card, i) => {
+      card.classList.toggle('active', i === index);
+    });
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === cards.length -1;
+  }
+
+  prevBtn.addEventListener('click', () => {
+    if (current > 0) {
+      current--;
+      showCard(current);
+    }
+  });
+
+  nextBtn.addEventListener('click', () => {
+    if (current < cards.length -1) {
+      current++;
+      showCard(current);
+    }
+  });
+
+  // Optional: keyboard support (left/right arrows)
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'ArrowRight' && current < cards.length -1) {
+      current++;
+      showCard(current);
+    }
+    if(e.key === 'ArrowLeft' && current > 0) {
+      current--;
+      showCard(current);
+    }
+  });
+</script>
+
+</body>
+</html>
